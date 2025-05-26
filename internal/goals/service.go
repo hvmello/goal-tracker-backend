@@ -35,26 +35,15 @@ func (s *Service) GetGoalByID(id uint) (*Goal, error) {
 
 // CreateGoal creates a new goal in the database
 func (s *Service) CreateGoal(goal *Goal) error {
-	if goal.Title == "" {
-		return errors.New("title is required")
+	if err := ValidateGoal(goal); err != nil {
+		return err
 	}
-
-	// Set default progress if not provided
-	if goal.Progress < 0 || goal.Progress > 100 {
-		return errors.New("progress must be between 0 and 100")
-	}
-
 	return s.db.Create(goal).Error
 }
 
-// UpdateGoal updates an existing goal
 func (s *Service) UpdateGoal(id uint, goal *Goal) error {
-	if goal.Title == "" {
-		return errors.New("title is required")
-	}
-
-	if goal.Progress < 0 || goal.Progress > 100 {
-		return errors.New("progress must be between 0 and 100")
+	if err := ValidateGoal(goal); err != nil {
+		return err
 	}
 
 	// Check if goal exists

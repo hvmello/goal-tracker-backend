@@ -1,7 +1,8 @@
+// Modificar: cmd/main.go
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -10,7 +11,9 @@ import (
 )
 
 func main() {
-	db, err := config.NewDBConnection()
+	cfg := config.GetConfig()
+
+	db, err := config.NewDBConnection(cfg)
 	if err != nil {
 		log.Fatalf("Error connecting to database: %v", err)
 	}
@@ -19,23 +22,20 @@ func main() {
 		log.Fatalf("Error executing migrations: %v", err)
 	}
 
-	log.Println("Migrations executed successfully!")
-
-	// Initialize services and handlers
 	goalService := goals.NewService(db)
 	goalHandler := goals.NewHandler(goalService)
 
-	// Route configuration
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		response := map[string]string{"status": "ok"}
-		json.NewEncoder(w).Encode(response)
-	})
-
 	http.HandleFunc("/goals/", goalHandler.HandleGoals)
+	http.HandleFunc("/health", healthCheck)
 
-	log.Println("Server starting on port 8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	serverAddr := fmt.Sprintf(":%s", cfg.Server.Port)
+	log.Printf("Server starting on port %s...", cfg.Server.Port)
+	if err := http.ListenAndServe(serverAddr, nil); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"ok"}`))
 }
