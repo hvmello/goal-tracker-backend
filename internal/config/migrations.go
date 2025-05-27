@@ -5,6 +5,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// AutoMigrate executes database migrations for all models
 func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(&goals.Goal{})
+	return db.AutoMigrate(
+		&goals.Goal{},
+	)
 }

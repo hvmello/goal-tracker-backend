@@ -3,51 +3,46 @@ package config
 import (
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"runtime"
 
-	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func NewDBConnection() (*gorm.DB, error) {
-	// root path finder
-	_, b, _, _ := runtime.Caller(0)
-	projectRoot := filepath.Join(filepath.Dir(b), "../..")
+// NewDBConnection establishes a new database connection using GORM
+// Returns a pointer to gorm.DB and an error if connection fails
+func NewDBConnection(config *Config) (*gorm.DB, error) {
 
-	if err := godotenv.Load(filepath.Join(projectRoot, ".env")); err != nil {
-		log.Printf(" .env não encontrado: %v", err)
-	}
-
-	// Configurações do DB através de variáveis de ambiente
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5433")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPassword := getEnv("DB_PASSWORD", "postgres")
-	dbName := getEnv("DB_NAME", "goaltracker")
-
-	// String de conexão
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName,
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		config.Database.Host,
+		config.Database.Port,
+		config.Database.User,
+		config.Database.Password,
+		config.Database.DBName,
+		config.Database.SSLMode,
 	)
 
-	// Abre a conexão usando GORM
+	// Initialize GORM with PostgreSQL driver
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("erro ao conectar ao banco de dados: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	log.Println("Conectado ao banco de dados com sucesso")
+	// Get the underlying SQL database to test connection
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get underlying *sql.DB: %v", err)
+	}
+
+	// Test the connection
+	if err := sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %v", err)
+	}
+
+	// Configure connection pool settings
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+
+	log.Println("Successfully connected to database")
 	return db, nil
-}
-
-func getEnv(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
 }
