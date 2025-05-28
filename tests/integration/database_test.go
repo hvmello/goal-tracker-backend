@@ -10,13 +10,20 @@ func TestDatabaseConnection(t *testing.T) {
 		t.Skip("Skip tests")
 	}
 
-	db, err := config.NewDBConnection()
+	cfg := config.GetConfig()
+
+	db, err := config.NewDBConnection(cfg)
 	if err != nil {
 		t.Fatalf("Error connecting to database: %v", err)
 	}
-	defer db.Close()
 
-	err = db.Ping()
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("Error getting underlying database connection: %v", err)
+	}
+	defer sqlDB.Close()
+
+	err = sqlDB.Ping()
 	if err != nil {
 		t.Fatalf("Error to ping database: %v", err)
 	}
