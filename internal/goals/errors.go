@@ -5,39 +5,39 @@ import (
 	"net/http"
 )
 
-// APIError representa um erro da API com status HTTP
 type APIError struct {
 	Message    string `json:"message"`
-	StatusCode int    `json:"-"` // não será serializado
+	StatusCode int    `json:"-"`
 }
 
 func (e *APIError) Error() string {
 	return e.Message
 }
 
-// Erros comuns da API
+// API Common errors
 var (
 	ErrInvalidID = &APIError{
-		Message:    "ID inválido",
+		Message:    "Invalid ID",
 		StatusCode: http.StatusBadRequest,
 	}
 	ErrGoalNotFound = &APIError{
-		Message:    "Meta não encontrada",
+		Message:    "Goal not found",
 		StatusCode: http.StatusNotFound,
 	}
 	ErrInvalidRequest = &APIError{
-		Message:    "Requisição inválida",
+		Message:    "Bad Request",
 		StatusCode: http.StatusBadRequest,
 	}
 )
 
-// WriteError escreve o erro na resposta HTTP de forma padronizada
+// WriteError padronizes error message
 func WriteError(w http.ResponseWriter, err error) {
 	apiError, ok := err.(*APIError)
 	if !ok {
-		// Erro interno genérico
+		// Internal Generic Error
 		apiError = &APIError{
-			Message:    "Erro interno do servidor",
+			Message: "Internal Server Error. Please try again later. If the problem persists," +
+				" contact the system administrator. Error: " + err.Error() + "",
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
