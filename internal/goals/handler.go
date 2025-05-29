@@ -8,10 +8,10 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service GoalService
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service GoalService) *Handler {
 	return &Handler{service: service}
 }
 
@@ -35,31 +35,34 @@ func (h *Handler) HandleGoals(w http.ResponseWriter, r *http.Request) {
 
 // handleGet processes GET requests
 func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/goals/")
-	if path != "" && path != "goals" {
-		id, err := strconv.ParseUint(path, 10, 32)
+	path := strings.TrimPrefix(r.URL.Path, "/goals")
+	path = strings.TrimPrefix(path, "/")
+
+	if path == "" {
+		// Lista todos os goals
+		goals, err := h.service.GetAllGoals()
 		if err != nil {
-			WriteErrorResponse(w, ErrInvalidID)
+			WriteErrorResponse(w, err)
 			return
 		}
-
-		goal, err := h.service.GetGoalByID(uint(id))
-		if err != nil {
-			WriteErrorResponse(w, ErrGoalNotFound)
-			return
-		}
-
-		WriteResponse(w, http.StatusOK, goal)
+		WriteResponse(w, http.StatusOK, goals)
 		return
 	}
 
-	goals, err := h.service.GetAllGoals()
+	// Search for specifi Goal
+	id, err := strconv.ParseUint(path, 10, 32)
 	if err != nil {
-		WriteErrorResponse(w, err)
+		WriteErrorResponse(w, ErrInvalidID)
 		return
 	}
 
-	WriteResponse(w, http.StatusOK, goals)
+	goal, err := h.service.GetGoalByID(uint(id))
+	if err != nil {
+		WriteErrorResponse(w, ErrGoalNotFound)
+		return
+	}
+
+	WriteResponse(w, http.StatusOK, goal)
 }
 
 // handlePost processes POST requests
