@@ -39,7 +39,7 @@ func (m *MockService) GetGoalByID(id uint) (*Goal, error) {
 
 func (m *MockService) CreateGoal(goal *Goal) error {
 	if goal.ID == 0 {
-		return errors.New("ID não pode ser zero")
+		return errors.New("ID can't be zero")
 	}
 	m.goals[goal.ID] = *goal
 	return nil

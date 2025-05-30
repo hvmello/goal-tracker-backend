@@ -21,7 +21,9 @@ func main() {
 		log.Fatalf("Error executing migrations: %v", err)
 	}
 
-	goalService := goals.NewService(db)
+	// Initialize repository and service
+	goalRepo := goals.NewGormRepository(db)
+	goalService := goals.NewService(goalRepo)
 	goalHandler := goals.NewHandler(goalService)
 
 	http.HandleFunc("/goals/", goalHandler.HandleGoals)

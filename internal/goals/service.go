@@ -1,55 +1,50 @@
 package goals
 
-import (
-	"errors"
-	"gorm.io/gorm"
-)
-
+// Service handles business logic for goals
 type Service struct {
-	db *gorm.DB
+	repo Repository
 }
 
-func NewService(db *gorm.DB) *Service {
-	return &Service{db: db}
+// NewService creates a new instance of Service
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
-// GetAllGoals retrieves all goals from the database
+// GetAllGoals retrieves all goals
 func (s *Service) GetAllGoals() ([]Goal, error) {
-	var goals []Goal
-	err := s.db.Find(&goals).Error
-	return goals, err
+	goals, err := s.repo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return goals, nil
 }
 
 // GetGoalByID retrieves a specific goal by its ID
 func (s *Service) GetGoalByID(id uint) (*Goal, error) {
-	var goal Goal
-	err := s.db.First(&goal, id).Error
+	goal, err := s.repo.FindByID(id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("goal not found")
-		}
-		return nil, err
+		return nil, ErrGoalNotFound
 	}
-	return &goal, nil
+	return goal, nil
 }
 
-// CreateGoal creates a new goal in the database
+// CreateGoal creates a new goal
 func (s *Service) CreateGoal(goal *Goal) error {
 	if err := ValidateGoal(goal); err != nil {
 		return err
 	}
-	return s.db.Create(goal).Error
+	return s.repo.Create(goal)
 }
 
+// UpdateGoal updates an existing goal
 func (s *Service) UpdateGoal(id uint, goal *Goal) error {
 	if err := ValidateGoal(goal); err != nil {
 		return err
 	}
 
-	// Check if goal exists
-	existingGoal, err := s.GetGoalByID(id)
+	existingGoal, err := s.repo.FindByID(id)
 	if err != nil {
-		return errors.New("goal not found")
+		return ErrGoalNotFound
 	}
 
 	// Update only allowed fields
@@ -58,17 +53,17 @@ func (s *Service) UpdateGoal(id uint, goal *Goal) error {
 	existingGoal.Progress = goal.Progress
 	existingGoal.DueDate = goal.DueDate
 
-	return s.db.Save(existingGoal).Error
+	return s.repo.Update(existingGoal)
 }
 
-// DeleteGoal deletes a goal by ID
+// DeleteGoal removes a goal
 func (s *Service) DeleteGoal(id uint) error {
-	result := s.db.Delete(&Goal{}, id)
-	if result.Error != nil {
-		return result.Error
+	if _, err := s.repo.FindByID(id); err != nil {
+		return ErrGoalNotFound
 	}
-	if result.RowsAffected == 0 {
-		return errors.New("goal not found")
+
+	if err := s.repo.Delete(id); err != nil {
+		return err
 	}
 	return nil
 }
