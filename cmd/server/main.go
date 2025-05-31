@@ -29,7 +29,7 @@ func main() {
 	http.HandleFunc("/goals/", goalHandler.HandleGoals)
 	http.HandleFunc("/health", healthCheck)
 
-	serverAddr := fmt.Sprintf(":%s", cfg.Server.Port)
+	serverAddr := fmt.Sprintf("0.0.0.0:%s", cfg.Server.Port)
 	log.Printf("Server starting on port %s...", cfg.Server.Port)
 	if err := http.ListenAndServe(serverAddr, nil); err != nil {
 		log.Fatalf("Error starting server: %v", err)
