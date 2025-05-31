@@ -52,3 +52,11 @@ The front-end is located in another repository called goal-tracker-front.
 ---
 
 Want help setting up automated Git tags and release workflows based on this versioning?
+
+
+
+# To build containers
+docker-compose up --build
+
+# To stop containers
+docker-compose down
