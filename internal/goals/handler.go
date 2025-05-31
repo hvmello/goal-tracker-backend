@@ -39,7 +39,7 @@ func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request) {
 	path = strings.TrimPrefix(path, "/")
 
 	if path == "" {
-		// Lista todos os goals
+		// List all goals
 		goals, err := h.service.GetAllGoals()
 		if err != nil {
 			WriteErrorResponse(w, err)
