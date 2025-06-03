@@ -1,3 +1,4 @@
+
 version: '3.8'
 
 services:
@@ -5,12 +6,19 @@ services:
     build: .
     ports:
       - "8080:8080"
-    env_file:
-      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSL_MODE: disable
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - goal-tracker-network
+    restart: unless-stopped
 
   postgres:
     image: postgres:16
@@ -24,6 +32,13 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - goal-tracker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
 networks:
   goal-tracker-network:
