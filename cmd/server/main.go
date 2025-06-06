@@ -1,3 +1,18 @@
+// @title Goal Tracker API
+// @version 1.0
+// @description API for tracking and managing goals
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://github.com/hvmello/goal-tracker-backend
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /
+// @schemes http https
+
 package main
 
 import (
@@ -10,6 +25,9 @@ import (
 	"github.com/hvmello/goal-tracker-backend/internal/health"
 )
 
+// @title Goal Tracker API
+// @version 1.0
+// @description Goal tracking application API
 func main() {
 	cfg := config.GetConfig()
 
@@ -38,6 +56,12 @@ func main() {
 	}
 }
 
+// @Summary Health Check
+// @Description Check if the service is healthy
+// @Tags health
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /health [get]
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status":"ok"}`))
