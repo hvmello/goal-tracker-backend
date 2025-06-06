@@ -1,11 +1,53 @@
-# Goal Tracker 
+## Goal Tracker
 
 ## Overview
 
-This is a Goal Tracker made in Go. This project is meant to be used as a way to monitore all the goals, checking if it is done, doing or to-do.
-The front-end is located in another repository called goal-tracker-front. 
+This is a Goal Tracker developed in Go, designed to monitor objectives and their respective status (completed, in progress, or to-do).
+The front-end is located in another repository called goal-tracker-front.
 
+## Technologies Used
+
+- Go 1.24.3
+- PostgreSQL 16
+- Docker & Docker Compose
+- GORM (ORM for Go)
+
+## Requirements
+
+- Docker and Docker Compose
+- Go 1.24.3 or higher (for local development)
+- Make (optional, for simplified commands)
+
+## Environment Setup
+
+1. Clone the repository:
+git clone [https://github.com/your-username/goal-tracker-backend.git](https://github.com/your-username/goal-tracker-backend.git)
+cd goal-tracker-backend
+
+2. Configure environment variables:
+   cp .env.example .env
+   Edit .env file with your settings
+
+3. Start containers:
+   docker-compose up --build
+
+## API Endpoints
+
+### Health Check
+`GET /health`
+
+Checks the status of the application and its services.
+
+**Success Response:**
+json { "success": true, "data": { "status": "ok", "timestamp": "2025-06-02T10:00:00Z", "services": { "database": "ok", "memory": "24.5MB", "goroutines": "8" }, "db_stats": { "open_connections": 2, "in_use": 1, "idle": 1 }, "version": "1.0.0" } }
+
+
+
+### Goals API
+TODO
 ## Project Structure
+
+
 
 ```plaintext
 ├── cmd/                 # Main applications for this project
@@ -20,6 +62,7 @@ The front-end is located in another repository called goal-tracker-front.
 ├── go.mod               # Go module definition
 ├── go.sum               # Go module checksums
 └── README.md            # Project documentation
+```
 
 
 
@@ -54,9 +97,17 @@ The front-end is located in another repository called goal-tracker-front.
 Want help setting up automated Git tags and release workflows based on this versioning?
 
 
+## Useful Commands
 
 # To build containers
 docker-compose up --build
 
 # To stop containers
 docker-compose down
+
+# Run tests
+go test ./...
+
+# Check code
+go vet ./...
+
