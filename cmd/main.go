@@ -20,6 +20,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
+	_ "github.com/hvmello/goal-tracker-backend/docs" // This will be auto-generated
+	httpSwagger "github.com/swaggo/http-swagger"
+
 	"github.com/hvmello/goal-tracker-backend/internal/config"
 	"github.com/hvmello/goal-tracker-backend/internal/goals"
 	"github.com/hvmello/goal-tracker-backend/internal/health"
@@ -46,12 +50,27 @@ func main() {
 	goalHandler := goals.NewHandler(goalService)
 	healthHandler := health.NewHandler(db, cfg)
 
-	http.HandleFunc("/goals/", goalHandler.HandleGoals)
-	http.HandleFunc("/health", healthHandler.CheckHealth)
+	// Create router
+	router := mux.NewRouter()
 
+	// API Routes
+	router.HandleFunc("/goals", goalHandler.HandleGoals).Methods("GET", "POST")
+	router.HandleFunc("/goals/{id:[0-9]+}", goalHandler.HandleGoals).Methods("GET", "PUT", "DELETE")
+	router.HandleFunc("/health", healthHandler.CheckHealth).Methods("GET")
+
+	// Swagger Route
+	router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+	))
+
+	// Server setup
 	serverAddr := fmt.Sprintf("0.0.0.0:%s", cfg.Server.Port)
 	log.Printf("Server starting on port %s...", cfg.Server.Port)
-	if err := http.ListenAndServe(serverAddr, nil); err != nil {
+	log.Printf("Swagger UI available at http://localhost:%s/swagger/index.html", cfg.Server.Port)
+
+	if err := http.ListenAndServe(serverAddr, router); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }

@@ -11,6 +11,15 @@ type Handler struct {
 	service GoalService
 }
 
+// @Summary Create a goal
+// @Description Create a new goal
+// @Tags goals
+// @Accept json
+// @Produce json
+// @Param goal body Goal true "Goal object"
+// @Success 201 {object} Goal
+// @Failure 400 {object} APIError
+// @Router /goals [post]
 func NewHandler(service GoalService) *Handler {
 	return &Handler{service: service}
 }
@@ -33,7 +42,13 @@ func (h *Handler) HandleGoals(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGet processes GET requests
+// @Summary Get all goals
+// @Description Get all goals
+// @Tags goals
+// @Produce json
+// @Success 200 {array} Goal
+// @Failure 500 {object} APIError
+// @Router /goals [get]
 func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/goals")
 	path = strings.TrimPrefix(path, "/")
@@ -65,7 +80,17 @@ func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, http.StatusOK, goal)
 }
 
-// handlePost processes POST requests
+// @Summary Update a goal
+// @Description Update an existing goal
+// @Tags goals
+// @Accept json
+// @Produce json
+// @Param id path int true "Goal ID"
+// @Param goal body Goal true "Goal object"
+// @Success 200 {object} Goal
+// @Failure 400 {object} APIError
+// @Failure 404 {object} APIError
+// @Router /goals/{id} [put]
 func (h *Handler) handlePost(w http.ResponseWriter, r *http.Request) {
 	var goal Goal
 	if err := json.NewDecoder(r.Body).Decode(&goal); err != nil {
@@ -110,6 +135,13 @@ func (h *Handler) handlePut(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, http.StatusOK, updatedGoal)
 }
 
+// @Summary Delete a goal
+// @Description Delete a goal by ID
+// @Tags goals
+// @Param id path int true "Goal ID"
+// @Success 204 "No Content"
+// @Failure 404 {object} APIError
+// @Router /goals/{id} [delete]
 func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/goals/")
 	if path == "" || path == "goals" {
