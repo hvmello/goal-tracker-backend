@@ -15,6 +15,9 @@ RUN go mod download
 # Copy the rest of the source code
 COPY . .
 
+# Generate Swagger docs
+RUN swag init -g cmd/main.go
+
 # Build the application with optimizations
 RUN CGO_ENABLED=0 GOOS=linux \
     go build -ldflags="-w -s" \
