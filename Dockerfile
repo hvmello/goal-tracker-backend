@@ -4,6 +4,10 @@ FROM golang:1.24.3-alpine AS builder
 
 WORKDIR /app
 
+# Install swag
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+
+
 # Copy only the files needed for downloading dependencies first
 COPY go.mod go.sum ./
 RUN go mod download
@@ -11,10 +15,13 @@ RUN go mod download
 # Copy the rest of the source code
 COPY . .
 
+# Generate Swagger docs
+RUN swag init -g cmd/main.go
+
 # Build the application with optimizations
 RUN CGO_ENABLED=0 GOOS=linux \
     go build -ldflags="-w -s" \
-    -v -o main ./cmd/server/main.go
+    -v -o main ./cmd/main.go
 
 # Stage 2: Final stage
 FROM alpine:3.19

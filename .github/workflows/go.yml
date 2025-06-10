@@ -36,6 +36,12 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Install Swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate Swagger Docs
+        run: swag init -g cmd/main.go
+
       - name: Verify dependencies
         run: go mod verify
 
