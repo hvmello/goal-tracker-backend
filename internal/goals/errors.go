@@ -1,7 +1,6 @@
 package goals
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
@@ -28,23 +27,8 @@ var (
 		Message:    "Bad Request",
 		StatusCode: http.StatusBadRequest,
 	}
-)
-
-// WriteError padronizes error message
-func WriteError(w http.ResponseWriter, err error) {
-	apiError, ok := err.(*APIError)
-	if !ok {
-		// Internal Generic Error
-		apiError = &APIError{
-			Message: "Internal Server Error. Please try again later. If the problem persists," +
-				" contact the system administrator. Error: " + err.Error() + "",
-			StatusCode: http.StatusInternalServerError,
-		}
+	ErrTooManyRequests = &APIError{
+		Message:    "Too many requests, please try again later",
+		StatusCode: http.StatusTooManyRequests,
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(apiError.StatusCode)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error": apiError.Message,
-	})
-}
+)

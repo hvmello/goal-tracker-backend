@@ -1,87 +1,84 @@
-// @title Goal Tracker API
-// @version 1.0
-// @description API for tracking and managing goals
-// @termsOfService http://swagger.io/terms/
-
-// @contact.name API Support
-// @contact.url http://github.com/hvmello/goal-tracker-backend
-
-// @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
-
-// @host localhost:8080
-// @BasePath /
-// @schemes http https
-
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
-	_ "github.com/hvmello/goal-tracker-backend/docs" // This will be auto-generated
-	httpSwagger "github.com/swaggo/http-swagger"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/hvmello/goal-tracker-backend/internal/config"
-	"github.com/hvmello/goal-tracker-backend/internal/goals"
-	"github.com/hvmello/goal-tracker-backend/internal/health"
+	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
+	"github.com/hvmello/goal-tracker-backend/internal/router"
 )
 
-// @title Goal Tracker API
-// @version 1.0
-// @description Goal tracking application API
 func main() {
-	cfg := config.GetConfig()
+	cfg := loadConfiguration()
+	router := setupServer(cfg)
+	server := createHTTPServer(cfg, router)
 
-	db, err := config.NewDBConnection(cfg)
-	if err != nil {
-		log.Fatalf("Error connecting to database: %v", err)
-	}
+	startServer(server)
+	waitForShutdown(server)
+}
 
-	if err := config.AutoMigrate(db); err != nil {
-		log.Fatalf("Error executing migrations: %v", err)
-	}
+func loadConfiguration() *config.Config {
+	return config.GetConfig()
+}
 
-	// Initialize repository and service
-	goalRepo := goals.NewGormRepository(db)
-	goalService := goals.NewService(goalRepo)
-	goalHandler := goals.NewHandler(goalService)
-	healthHandler := health.NewHandler(db, cfg)
+func setupServer(cfg *config.Config) *router.Router {
+	r := router.NewRouter()
 
-	// Create router
-	router := mux.NewRouter()
+	setupMiddlewares(r, cfg)
+	setupRoutes(r)
 
-	// API Routes
-	router.HandleFunc("/goals", goalHandler.HandleGoals).Methods("GET", "POST")
-	router.HandleFunc("/goals/{id:[0-9]+}", goalHandler.HandleGoals).Methods("GET", "PUT", "DELETE")
-	router.HandleFunc("/health", healthHandler.CheckHealth).Methods("GET")
+	return r
+}
 
-	// Swagger Route
-	router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("/swagger/doc.json"),
-		httpSwagger.DeepLinking(true),
-		httpSwagger.DocExpansion("none"),
-	))
-
-	// Server setup
-	serverAddr := fmt.Sprintf("0.0.0.0:%s", cfg.Server.Port)
-	log.Printf("Server starting on port %s...", cfg.Server.Port)
-	log.Printf("Swagger UI available at http://localhost:%s/swagger/index.html", cfg.Server.Port)
-
-	if err := http.ListenAndServe(serverAddr, router); err != nil {
-		log.Fatalf("Error starting server: %v", err)
+func setupMiddlewares(r *router.Router, cfg *config.Config) {
+	if cfg.RateLimit.Enabled {
+		rateLimiter := ratelimit.New(cfg.RateLimit)
+		r.Use(rateLimiter.Middleware)
 	}
 }
 
-// @Summary Health Check
-// @Description Check if the service is healthy
-// @Tags health
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Router /health [get]
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"ok"}`))
+func setupRoutes(router *router.Router) {
+}
+
+func createHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:         fmt.Sprintf(":%s", cfg.Server.Port),
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+}
+
+func startServer(server *http.Server) {
+	go func() {
+		log.Printf("Server starting on %s", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+}
+
+func waitForShutdown(server *http.Server) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Server is shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server stopped gracefully")
 }
