@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/hvmello/goal-tracker-backend/internal/config"
+	"github.com/hvmello/goal-tracker-backend/internal/goals"
+	"github.com/hvmello/goal-tracker-backend/internal/health"
 	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
 	"github.com/hvmello/goal-tracker-backend/internal/router"
 )
@@ -44,7 +46,33 @@ func setupMiddlewares(r *router.Router, cfg *config.Config) {
 	}
 }
 
-func setupRoutes(router *router.Router) {
+func setupRoutes(r *router.Router) {
+	// Configuração do banco de dados
+	cfg := loadConfiguration()
+	db, err := config.NewDBConnection(cfg)
+	if err != nil {
+		log.Fatalf("Failed to setup database: %v", err)
+	}
+
+	// Run migrations
+	if err := config.AutoMigrate(db); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Health endpoint
+	healthHandler := health.NewHandler(db, cfg)
+
+	// Goals endpoints
+	goalRepo := goals.NewGormRepository(db)
+	goalService := goals.NewService(goalRepo)
+	goalHandler := goals.NewHandler(goalService)
+
+	// Usando HandlerFunc para converter a função em http.Handler
+	// Isso permite que o middleware seja aplicado corretamente
+	r.Handle("/health", http.HandlerFunc(healthHandler.CheckHealth))
+	r.Handle("/api/goals", http.HandlerFunc(goalHandler.HandleGoals))
+	r.Handle("/api/goals/", http.HandlerFunc(goalHandler.HandleGoals))
+
 }
 
 func createHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {
