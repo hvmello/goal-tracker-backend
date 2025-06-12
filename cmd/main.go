@@ -1,3 +1,17 @@
+// @title Goal Tracker API
+// @version 1.0
+// @description API for tracking and managing goals
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://github.com/hvmello/goal-tracker-backend
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /
+// @schemes http https
 package main
 
 import (
@@ -10,6 +24,9 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/hvmello/goal-tracker-backend/docs" // This will be auto-generated
+	httpSwagger "github.com/swaggo/http-swagger"
+
 	"github.com/hvmello/goal-tracker-backend/internal/config"
 	"github.com/hvmello/goal-tracker-backend/internal/goals"
 	"github.com/hvmello/goal-tracker-backend/internal/health"
@@ -17,6 +34,9 @@ import (
 	"github.com/hvmello/goal-tracker-backend/internal/router"
 )
 
+// @title Goal Tracker API
+// @version 1.0
+// @description Goal tracking application API
 func main() {
 	cfg := loadConfiguration()
 	r := setupServer(cfg)
@@ -70,6 +90,13 @@ func setupRoutes(r *router.Router) {
 	r.Handle("/health", http.HandlerFunc(healthHandler.CheckHealth))
 	r.Handle("/api/goals", http.HandlerFunc(goalHandler.HandleGoals))
 	r.Handle("/api/goals/", http.HandlerFunc(goalHandler.HandleGoals))
+
+	// Swagger Route
+	r.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+	))
 
 }
 
