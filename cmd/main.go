@@ -19,8 +19,8 @@ import (
 
 func main() {
 	cfg := loadConfiguration()
-	router := setupServer(cfg)
-	server := createHTTPServer(cfg, router)
+	r := setupServer(cfg)
+	server := createHTTPServer(cfg, r)
 
 	startServer(server)
 	waitForShutdown(server)
@@ -40,14 +40,14 @@ func setupServer(cfg *config.Config) *router.Router {
 }
 
 func setupMiddlewares(r *router.Router, cfg *config.Config) {
-	if cfg.RateLimit.Enabled {
-		rateLimiter := ratelimit.New(cfg.RateLimit)
-		r.Use(rateLimiter.Middleware)
-	}
+	log.Printf("Setting up middlewares. Rate limit enabled: %v", cfg.RateLimit.Enabled)
+
+	rateLimiter := ratelimit.New(cfg.RateLimit)
+	r.Use(rateLimiter.Middleware)
 }
 
 func setupRoutes(r *router.Router) {
-	// Configuração do banco de dados
+	// Database connection
 	cfg := loadConfiguration()
 	db, err := config.NewDBConnection(cfg)
 	if err != nil {
@@ -67,8 +67,6 @@ func setupRoutes(r *router.Router) {
 	goalService := goals.NewService(goalRepo)
 	goalHandler := goals.NewHandler(goalService)
 
-	// Usando HandlerFunc para converter a função em http.Handler
-	// Isso permite que o middleware seja aplicado corretamente
 	r.Handle("/health", http.HandlerFunc(healthHandler.CheckHealth))
 	r.Handle("/api/goals", http.HandlerFunc(goalHandler.HandleGoals))
 	r.Handle("/api/goals/", http.HandlerFunc(goalHandler.HandleGoals))

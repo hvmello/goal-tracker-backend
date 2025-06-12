@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"golang.org/x/time/rate"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -22,6 +23,9 @@ type RateLimiter struct {
 }
 
 func New(config config.RateLimitConfig) *RateLimiter {
+	log.Printf("Initializing rate limiter: enabled=%v, requests per minute=%d, burst size=%d",
+		config.Enabled, config.RequestsPerMinute, config.BurstSize)
+
 	return &RateLimiter{
 		visitors: make(map[string]*visitor),
 		config:   config,
@@ -34,7 +38,14 @@ func (rl *RateLimiter) getVisitor(ip string) *rate.Limiter {
 
 	v, exists := rl.visitors[ip]
 	if !exists {
-		limiter := rate.NewLimiter(rate.Limit(rl.config.RequestsPerMinute)/60, rl.config.BurstSize)
+		// Use rate.Every to define the interval between requests
+		//If 5 req/min, we de 1 req every 12 seconds
+		interval := time.Minute / time.Duration(rl.config.RequestsPerMinute)
+		limiter := rate.NewLimiter(rate.Every(interval), rl.config.BurstSize)
+
+		log.Printf("New visitor: %s, interval: %v, burst: %d",
+			ip, interval, rl.config.BurstSize)
+
 		rl.visitors[ip] = &visitor{
 			limiter:  limiter,
 			lastSeen: time.Now(),
@@ -53,11 +64,14 @@ func (rl *RateLimiter) cleanup() {
 	for ip, v := range rl.visitors {
 		if time.Since(v.lastSeen) > 3*time.Hour {
 			delete(rl.visitors, ip)
+			log.Printf("Cleaned up visitor: %s", ip)
 		}
 	}
 }
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
+	log.Println("Middleware started for rate limiting")
+
 	go func() {
 		for {
 			time.Sleep(time.Hour)
@@ -66,6 +80,12 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !rl.config.Enabled {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Gets IP for client
 		ip := r.Header.Get("X-Real-IP")
 		if ip == "" {
 			ip = r.Header.Get("X-Forwarded-For")
@@ -74,8 +94,17 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			ip = r.RemoteAddr
 		}
 
+		// Limiter for IP
 		limiter := rl.getVisitor(ip)
+
+		// 429 if too many requests
 		if !limiter.Allow() {
+			log.Printf("Rate limit exceeded for IP: %s, path: %s", ip, r.URL.Path)
+
+			w.Header().Set("Retry-After", "60")
+			w.Header().Set("X-RateLimit-Limit", "5")
+			w.Header().Set("X-RateLimit-Remaining", "0")
+
 			goals.WriteErrorResponse(w, goals.ErrTooManyRequests)
 			return
 		}

@@ -75,7 +75,7 @@ func GetConfig() *Config {
 		},
 		RateLimit: RateLimitConfig{
 			Enabled:           getEnvBool("RATE_LIMIT_ENABLED", true),
-			RequestsPerMinute: getEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),
+			RequestsPerMinute: getEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 5),
 			BurstSize:         getEnvInt("RATE_LIMIT_BURST_SIZE", 20),
 		},
 	}
