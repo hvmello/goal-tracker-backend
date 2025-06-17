@@ -4,42 +4,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
 	service GoalService
 }
 
-// @Summary Create a goal
-// @Description Create a new goal
-// @Tags goals
-// @Accept json
-// @Produce json
-// @Param goal body Goal true "Goal object"
-// @Success 201 {object} Goal
-// @Failure 400 {object} APIError
-// @Router /goals [post]
 func NewHandler(service GoalService) *Handler {
 	return &Handler{service: service}
-}
-
-// HandleGoals is the main handler that routes to specific methods
-func (h *Handler) HandleGoals(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	switch r.Method {
-	case http.MethodGet:
-		h.handleGet(w, r)
-	case http.MethodPost:
-		h.handlePost(w, r)
-	case http.MethodPut:
-		h.handlePut(w, r)
-	case http.MethodDelete:
-		h.handleDelete(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
 }
 
 // @Summary Get all goals
@@ -48,24 +22,33 @@ func (h *Handler) HandleGoals(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Success 200 {array} Goal
 // @Failure 500 {object} APIError
-// @Router /goals [get]
-func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/goals")
-	path = strings.TrimPrefix(path, "/")
+// @Router /api/goals [get]
+func (h *Handler) GetAllGoals(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
-	if path == "" {
-		// List all goals
-		goals, err := h.service.GetAllGoals()
-		if err != nil {
-			WriteErrorResponse(w, err)
-			return
-		}
-		WriteResponse(w, http.StatusOK, goals)
+	goals, err := h.service.GetAllGoals()
+	if err != nil {
+		WriteErrorResponse(w, err)
 		return
 	}
 
-	// Search for specifi Goal
-	id, err := strconv.ParseUint(path, 10, 32)
+	WriteResponse(w, http.StatusOK, goals)
+}
+
+// @Summary Get a goal by ID
+// @Description Get a goal by its ID
+// @Tags goals
+// @Produce json
+// @Param id path int true "Goal ID"
+// @Success 200 {object} Goal
+// @Failure 400 {object} APIError
+// @Failure 404 {object} APIError
+// @Router /api/goals/{id} [get]
+func (h *Handler) GetGoalByID(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		WriteErrorResponse(w, ErrInvalidID)
 		return
@@ -80,18 +63,18 @@ func (h *Handler) handleGet(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, http.StatusOK, goal)
 }
 
-// @Summary Update a goal
-// @Description Update an existing goal
+// @Summary Create a goal
+// @Description Create a new goal
 // @Tags goals
 // @Accept json
 // @Produce json
-// @Param id path int true "Goal ID"
 // @Param goal body Goal true "Goal object"
-// @Success 200 {object} Goal
+// @Success 201 {object} Goal
 // @Failure 400 {object} APIError
-// @Failure 404 {object} APIError
-// @Router /goals/{id} [put]
-func (h *Handler) handlePost(w http.ResponseWriter, r *http.Request) {
+// @Router /api/goals [post]
+func (h *Handler) CreateGoal(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	var goal Goal
 	if err := json.NewDecoder(r.Body).Decode(&goal); err != nil {
 		WriteErrorResponse(w, ErrInvalidRequest)
@@ -106,10 +89,22 @@ func (h *Handler) handlePost(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, http.StatusCreated, goal)
 }
 
-// handlePut processes PUT requests
-func (h *Handler) handlePut(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/goals/")
-	id, err := strconv.ParseUint(path, 10, 32)
+// @Summary Update a goal
+// @Description Update an existing goal
+// @Tags goals
+// @Accept json
+// @Produce json
+// @Param id path int true "Goal ID"
+// @Param goal body Goal true "Goal object"
+// @Success 200 {object} Goal
+// @Failure 400 {object} APIError
+// @Failure 404 {object} APIError
+// @Router /api/goals/{id} [put]
+func (h *Handler) UpdateGoal(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		WriteErrorResponse(w, ErrInvalidID)
 		return
@@ -140,16 +135,14 @@ func (h *Handler) handlePut(w http.ResponseWriter, r *http.Request) {
 // @Tags goals
 // @Param id path int true "Goal ID"
 // @Success 204 "No Content"
+// @Failure 400 {object} APIError
 // @Failure 404 {object} APIError
-// @Router /goals/{id} [delete]
-func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/goals/")
-	if path == "" || path == "goals" {
-		WriteErrorResponse(w, ErrInvalidRequest)
-		return
-	}
+// @Router /api/goals/{id} [delete]
+func (h *Handler) DeleteGoal(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
-	id, err := strconv.ParseUint(path, 10, 32)
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
 		WriteErrorResponse(w, ErrInvalidID)
 		return

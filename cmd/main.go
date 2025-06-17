@@ -24,80 +24,65 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/hvmello/goal-tracker-backend/docs" // This will be auto-generated
+	_ "github.com/hvmello/goal-tracker-backend/docs" // Swagger docs
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/gorilla/mux"
 	"github.com/hvmello/goal-tracker-backend/internal/config"
 	"github.com/hvmello/goal-tracker-backend/internal/goals"
 	"github.com/hvmello/goal-tracker-backend/internal/health"
 	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
-	"github.com/hvmello/goal-tracker-backend/internal/router"
 )
 
-// @title Goal Tracker API
-// @version 1.0
-// @description Goal tracking application API
 func main() {
-	cfg := loadConfiguration()
-	r := setupServer(cfg)
+	cfg := config.GetConfig()
+	r := setupRouter(cfg)
 	server := createHTTPServer(cfg, r)
 
 	startServer(server)
 	waitForShutdown(server)
 }
 
-func loadConfiguration() *config.Config {
-	return config.GetConfig()
-}
+func setupRouter(cfg *config.Config) *mux.Router {
+	r := mux.NewRouter()
 
-func setupServer(cfg *config.Config) *router.Router {
-	r := router.NewRouter()
-
-	setupMiddlewares(r, cfg)
-	setupRoutes(r)
-
-	return r
-}
-
-func setupMiddlewares(r *router.Router, cfg *config.Config) {
-	log.Printf("Setting up middlewares. Rate limit enabled: %v", cfg.RateLimit.Enabled)
-
+	// Rate limiting middleware
 	rateLimiter := ratelimit.New(cfg.RateLimit)
 	r.Use(rateLimiter.Middleware)
-}
 
-func setupRoutes(r *router.Router) {
-	// Database connection
-	cfg := loadConfiguration()
-	db, err := config.NewDBConnection(cfg)
-	if err != nil {
-		log.Fatalf("Failed to setup database: %v", err)
-	}
-
-	// Run migrations
-	if err := config.AutoMigrate(db); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
-	}
-
-	// Health endpoint
-	healthHandler := health.NewHandler(db, cfg)
-
-	// Goals endpoints
-	goalRepo := goals.NewGormRepository(db)
-	goalService := goals.NewService(goalRepo)
-	goalHandler := goals.NewHandler(goalService)
-
-	r.Handle("/health", http.HandlerFunc(healthHandler.CheckHealth))
-	r.Handle("/api/goals", http.HandlerFunc(goalHandler.HandleGoals))
-	r.Handle("/api/goals/", http.HandlerFunc(goalHandler.HandleGoals))
-
-	// Swagger Route
-	r.Handle("/swagger/", httpSwagger.Handler(
+	// Swagger
+	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 		httpSwagger.DeepLinking(true),
 		httpSwagger.DocExpansion("none"),
 	))
 
+	// Database
+	db, err := config.NewDBConnection(cfg)
+	if err != nil {
+		log.Fatalf("Failed to setup database: %v", err)
+	}
+
+	if err := config.AutoMigrate(db); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Health
+	healthHandler := health.NewHandler(db, cfg)
+	r.HandleFunc("/health", healthHandler.CheckHealth).Methods("GET")
+
+	// Goals
+	goalRepo := goals.NewGormRepository(db)
+	goalService := goals.NewService(goalRepo)
+	goalHandler := goals.NewHandler(goalService)
+
+	r.HandleFunc("/api/goals", goalHandler.GetAllGoals).Methods("GET")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.GetGoalByID).Methods("GET")
+	r.HandleFunc("/api/goals", goalHandler.CreateGoal).Methods("POST")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.UpdateGoal).Methods("PUT")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.DeleteGoal).Methods("DELETE")
+
+	return r
 }
 
 func createHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {

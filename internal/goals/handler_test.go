@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 func TestHandleGetAllGoals(t *testing.T) {
@@ -61,11 +63,20 @@ func TestHandleGetAllGoals(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create a test router using gorilla/mux
+			router := mux.NewRouter()
 			handler := NewHandler(mockService)
+
+			// Register the handlers
+			router.HandleFunc("/goals", handler.GetAllGoals).Methods("GET")
+			router.HandleFunc("/goals/{id:[0-9]+}", handler.GetGoalByID).Methods("GET")
+
+			// Create a test request
 			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
 			w := httptest.NewRecorder()
 
-			handler.HandleGoals(w, req)
+			// Serve the request through the router
+			router.ServeHTTP(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("HandleGoals() status = %v, want %v", w.Code, tt.wantStatus)
