@@ -32,6 +32,7 @@ import (
 	"github.com/hvmello/goal-tracker-backend/internal/goals"
 	"github.com/hvmello/goal-tracker-backend/internal/health"
 	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
+	"github.com/hvmello/goal-tracker-backend/internal/middleware/securityheaders"
 )
 
 func main() {
@@ -45,6 +46,8 @@ func main() {
 
 func setupRouter(cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
+
+	r.Use(securityheaders.Middleware)
 
 	// Rate limiting middleware
 	rateLimiter := ratelimit.New(cfg.RateLimit)
