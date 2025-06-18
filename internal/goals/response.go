@@ -1,4 +1,3 @@
-// Novo arquivo: internal/goals/response.go
 package goals
 
 import (
@@ -12,6 +11,7 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// WriteResponse padroniza as respostas de sucesso
 func WriteResponse(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
@@ -24,11 +24,13 @@ func WriteResponse(w http.ResponseWriter, statusCode int, data interface{}) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// WriteErrorResponse padroniza as respostas de erro
 func WriteErrorResponse(w http.ResponseWriter, err error) {
 	apiError, ok := err.(*APIError)
 	if !ok {
+		// Internal Generic Error
 		apiError = &APIError{
-			Message:    "Erro interno do servidor",
+			Message:    "Internal Server Error. Please try again later.",
 			StatusCode: http.StatusInternalServerError,
 		}
 	}

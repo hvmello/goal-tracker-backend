@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	RateLimit RateLimitConfig
 }
 
 type ServerConfig struct {
@@ -25,6 +26,12 @@ type DatabaseConfig struct {
 	Password string
 	DBName   string
 	SSLMode  string
+}
+
+type RateLimitConfig struct {
+	Enabled           bool `env:"RATE_LIMIT_ENABLED" envDefault:"true"`
+	RequestsPerMinute int  `env:"RATE_LIMIT_REQUESTS_PER_MINUTE" envDefault:"60"`
+	BurstSize         int  `env:"RATE_LIMIT_BURST_SIZE" envDefault:"20"`
 }
 
 func GetConfig() *Config {
@@ -66,6 +73,11 @@ func GetConfig() *Config {
 			DBName:   getEnv("DB_NAME", "goaltracker"),
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
 		},
+		RateLimit: RateLimitConfig{
+			Enabled:           getEnvBool("RATE_LIMIT_ENABLED", true),
+			RequestsPerMinute: getEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 5),
+			BurstSize:         getEnvInt("RATE_LIMIT_BURST_SIZE", 20),
+		},
 	}
 }
 
@@ -83,6 +95,15 @@ func getEnvBool(key string, defaultValue bool) bool {
 		b, err := strconv.ParseBool(value)
 		if err == nil {
 			return b
+		}
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
 		}
 	}
 	return defaultValue

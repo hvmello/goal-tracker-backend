@@ -12,76 +12,114 @@
 // @host localhost:8080
 // @BasePath /
 // @schemes http https
-
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/gorilla/mux"
-	_ "github.com/hvmello/goal-tracker-backend/docs" // This will be auto-generated
+	_ "github.com/hvmello/goal-tracker-backend/docs" // Swagger docs
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/gorilla/mux"
 	"github.com/hvmello/goal-tracker-backend/internal/config"
 	"github.com/hvmello/goal-tracker-backend/internal/goals"
 	"github.com/hvmello/goal-tracker-backend/internal/health"
+	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
+	"github.com/hvmello/goal-tracker-backend/internal/middleware/securityheaders"
 )
 
-// @title Goal Tracker API
-// @version 1.0
-// @description Goal tracking application API
 func main() {
 	cfg := config.GetConfig()
+	r := setupRouter(cfg)
+	server := createHTTPServer(cfg, r)
 
-	db, err := config.NewDBConnection(cfg)
-	if err != nil {
-		log.Fatalf("Error connecting to database: %v", err)
-	}
+	startServer(server)
+	waitForShutdown(server)
+}
 
-	if err := config.AutoMigrate(db); err != nil {
-		log.Fatalf("Error executing migrations: %v", err)
-	}
+func setupRouter(cfg *config.Config) *mux.Router {
+	r := mux.NewRouter()
 
-	// Initialize repository and service
-	goalRepo := goals.NewGormRepository(db)
-	goalService := goals.NewService(goalRepo)
-	goalHandler := goals.NewHandler(goalService)
-	healthHandler := health.NewHandler(db, cfg)
+	r.Use(securityheaders.Middleware)
 
-	// Create router
-	router := mux.NewRouter()
+	// Rate limiting middleware
+	rateLimiter := ratelimit.New(cfg.RateLimit)
+	r.Use(rateLimiter.Middleware)
 
-	// API Routes
-	router.HandleFunc("/goals", goalHandler.HandleGoals).Methods("GET", "POST")
-	router.HandleFunc("/goals/{id:[0-9]+}", goalHandler.HandleGoals).Methods("GET", "PUT", "DELETE")
-	router.HandleFunc("/health", healthHandler.CheckHealth).Methods("GET")
-
-	// Swagger Route
-	router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+	// Swagger
+	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 		httpSwagger.DeepLinking(true),
 		httpSwagger.DocExpansion("none"),
 	))
 
-	// Server setup
-	serverAddr := fmt.Sprintf("0.0.0.0:%s", cfg.Server.Port)
-	log.Printf("Server starting on port %s...", cfg.Server.Port)
-	log.Printf("Swagger UI available at http://localhost:%s/swagger/index.html", cfg.Server.Port)
+	// Database
+	db, err := config.NewDBConnection(cfg)
+	if err != nil {
+		log.Fatalf("Failed to setup database: %v", err)
+	}
 
-	if err := http.ListenAndServe(serverAddr, router); err != nil {
-		log.Fatalf("Error starting server: %v", err)
+	if err := config.AutoMigrate(db); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Health
+	healthHandler := health.NewHandler(db, cfg)
+	r.HandleFunc("/health", healthHandler.CheckHealth).Methods("GET")
+
+	// Goals
+	goalRepo := goals.NewGormRepository(db)
+	goalService := goals.NewService(goalRepo)
+	goalHandler := goals.NewHandler(goalService)
+
+	r.HandleFunc("/api/goals", goalHandler.GetAllGoals).Methods("GET")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.GetGoalByID).Methods("GET")
+	r.HandleFunc("/api/goals", goalHandler.CreateGoal).Methods("POST")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.UpdateGoal).Methods("PUT")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.DeleteGoal).Methods("DELETE")
+
+	return r
+}
+
+func createHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:         fmt.Sprintf(":%s", cfg.Server.Port),
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 }
 
-// @Summary Health Check
-// @Description Check if the service is healthy
-// @Tags health
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Router /health [get]
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"ok"}`))
+func startServer(server *http.Server) {
+	go func() {
+		log.Printf("Server starting on %s", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+}
+
+func waitForShutdown(server *http.Server) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Server is shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server stopped gracefully")
 }
