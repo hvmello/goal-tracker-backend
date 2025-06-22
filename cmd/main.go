@@ -31,6 +31,7 @@ import (
 	"github.com/hvmello/goal-tracker-backend/internal/config"
 	"github.com/hvmello/goal-tracker-backend/internal/goals"
 	"github.com/hvmello/goal-tracker-backend/internal/health"
+	"github.com/hvmello/goal-tracker-backend/internal/middleware/cors"
 	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
 	"github.com/hvmello/goal-tracker-backend/internal/middleware/securityheaders"
 )
@@ -45,16 +46,16 @@ func main() {
 }
 
 func setupRouter(cfg *config.Config) *mux.Router {
-	r := mux.NewRouter()
+	root := mux.NewRouter()
+	root.Use(cors.Middleware) // <- CORS
 
+	// Subrouter
+	r := root.PathPrefix("/").Subrouter()
 	r.Use(securityheaders.Middleware)
-
-	// Rate limiting middleware
-	rateLimiter := ratelimit.New(cfg.RateLimit)
-	r.Use(rateLimiter.Middleware)
+	r.Use(ratelimit.New(cfg.RateLimit).Middleware)
 
 	// Swagger
-	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+	root.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 		httpSwagger.DeepLinking(true),
 		httpSwagger.DocExpansion("none"),
@@ -79,13 +80,13 @@ func setupRouter(cfg *config.Config) *mux.Router {
 	goalService := goals.NewService(goalRepo)
 	goalHandler := goals.NewHandler(goalService)
 
-	r.HandleFunc("/api/goals", goalHandler.GetAllGoals).Methods("GET")
-	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.GetGoalByID).Methods("GET")
-	r.HandleFunc("/api/goals", goalHandler.CreateGoal).Methods("POST")
-	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.UpdateGoal).Methods("PUT")
-	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.DeleteGoal).Methods("DELETE")
+	r.HandleFunc("/api/goals", goalHandler.GetAllGoals).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.GetGoalByID).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/goals", goalHandler.CreateGoal).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.UpdateGoal).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.DeleteGoal).Methods("DELETE", "OPTIONS")
 
-	return r
+	return root
 }
 
 func createHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {
