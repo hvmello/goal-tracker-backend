@@ -25,67 +25,18 @@ import (
 	"time"
 
 	_ "github.com/hvmello/goal-tracker-backend/docs" // Swagger docs
-	httpSwagger "github.com/swaggo/http-swagger"
 
-	"github.com/gorilla/mux"
 	"github.com/hvmello/goal-tracker-backend/internal/config"
-	"github.com/hvmello/goal-tracker-backend/internal/goals"
-	"github.com/hvmello/goal-tracker-backend/internal/health"
-	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
-	"github.com/hvmello/goal-tracker-backend/internal/middleware/securityheaders"
+	"github.com/hvmello/goal-tracker-backend/internal/router"
 )
 
 func main() {
 	cfg := config.GetConfig()
-	r := setupRouter(cfg)
+	r := router.SetupRouter(cfg)
 	server := createHTTPServer(cfg, r)
 
 	startServer(server)
 	waitForShutdown(server)
-}
-
-func setupRouter(cfg *config.Config) *mux.Router {
-	r := mux.NewRouter()
-
-	r.Use(securityheaders.Middleware)
-
-	// Rate limiting middleware
-	rateLimiter := ratelimit.New(cfg.RateLimit)
-	r.Use(rateLimiter.Middleware)
-
-	// Swagger
-	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("/swagger/doc.json"),
-		httpSwagger.DeepLinking(true),
-		httpSwagger.DocExpansion("none"),
-	))
-
-	// Database
-	db, err := config.NewDBConnection(cfg)
-	if err != nil {
-		log.Fatalf("Failed to setup database: %v", err)
-	}
-
-	if err := config.AutoMigrate(db); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
-	}
-
-	// Health
-	healthHandler := health.NewHandler(db, cfg)
-	r.HandleFunc("/health", healthHandler.CheckHealth).Methods("GET")
-
-	// Goals
-	goalRepo := goals.NewGormRepository(db)
-	goalService := goals.NewService(goalRepo)
-	goalHandler := goals.NewHandler(goalService)
-
-	r.HandleFunc("/api/goals", goalHandler.GetAllGoals).Methods("GET")
-	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.GetGoalByID).Methods("GET")
-	r.HandleFunc("/api/goals", goalHandler.CreateGoal).Methods("POST")
-	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.UpdateGoal).Methods("PUT")
-	r.HandleFunc("/api/goals/{id:[0-9]+}", goalHandler.DeleteGoal).Methods("DELETE")
-
-	return r
 }
 
 func createHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {
