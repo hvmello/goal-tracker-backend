@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
 )
 
 type Handler struct {
@@ -21,18 +22,18 @@ func NewHandler(service GoalService) *Handler {
 // @Tags goals
 // @Produce json
 // @Success 200 {array} Goal
-// @Failure 500 {object} APIError
+// @Failure 500 {object} response.APIError
 // @Router /api/goals [get]
 func (h *Handler) GetAllGoals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	goals, err := h.service.GetAllGoals()
 	if err != nil {
-		WriteErrorResponse(w, err)
+		response.WriteErrorResponse(w, err)
 		return
 	}
 
-	WriteResponse(w, http.StatusOK, goals)
+	response.WriteResponse(w, http.StatusOK, goals)
 }
 
 // @Summary Get a goal by ID
@@ -41,8 +42,8 @@ func (h *Handler) GetAllGoals(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path int true "Goal ID"
 // @Success 200 {object} Goal
-// @Failure 400 {object} APIError
-// @Failure 404 {object} APIError
+// @Failure 400 {object} response.APIError
+// @Failure 404 {object} response.APIError
 // @Router /api/goals/{id} [get]
 func (h *Handler) GetGoalByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -50,17 +51,17 @@ func (h *Handler) GetGoalByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
-		WriteErrorResponse(w, ErrInvalidID)
+		response.WriteErrorResponse(w, response.ErrInvalidID)
 		return
 	}
 
 	goal, err := h.service.GetGoalByID(uint(id))
 	if err != nil {
-		WriteErrorResponse(w, ErrGoalNotFound)
+		response.WriteErrorResponse(w, response.ErrGoalNotFound)
 		return
 	}
 
-	WriteResponse(w, http.StatusOK, goal)
+	response.WriteResponse(w, http.StatusOK, goal)
 }
 
 // @Summary Create a goal
@@ -70,23 +71,23 @@ func (h *Handler) GetGoalByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param goal body Goal true "Goal object"
 // @Success 201 {object} Goal
-// @Failure 400 {object} APIError
+// @Failure 400 {object} response.APIError
 // @Router /api/goals [post]
 func (h *Handler) CreateGoal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var goal Goal
 	if err := json.NewDecoder(r.Body).Decode(&goal); err != nil {
-		WriteErrorResponse(w, ErrInvalidRequest)
+		response.WriteErrorResponse(w, response.ErrInvalidRequest)
 		return
 	}
 
 	if err := h.service.CreateGoal(&goal); err != nil {
-		WriteErrorResponse(w, err)
+		response.WriteErrorResponse(w, err)
 		return
 	}
 
-	WriteResponse(w, http.StatusCreated, goal)
+	response.WriteResponse(w, http.StatusCreated, goal)
 }
 
 // @Summary Update a goal
@@ -97,8 +98,8 @@ func (h *Handler) CreateGoal(w http.ResponseWriter, r *http.Request) {
 // @Param id path int true "Goal ID"
 // @Param goal body Goal true "Goal object"
 // @Success 200 {object} Goal
-// @Failure 400 {object} APIError
-// @Failure 404 {object} APIError
+// @Failure 400 {object} response.APIError
+// @Failure 404 {object} response.APIError
 // @Router /api/goals/{id} [put]
 func (h *Handler) UpdateGoal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -106,28 +107,28 @@ func (h *Handler) UpdateGoal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
-		WriteErrorResponse(w, ErrInvalidID)
+		response.WriteErrorResponse(w, response.ErrInvalidID)
 		return
 	}
 
 	var goal Goal
 	if err := json.NewDecoder(r.Body).Decode(&goal); err != nil {
-		WriteErrorResponse(w, ErrInvalidRequest)
+		response.WriteErrorResponse(w, response.ErrInvalidRequest)
 		return
 	}
 
 	if err := h.service.UpdateGoal(uint(id), &goal); err != nil {
-		WriteErrorResponse(w, err)
+		response.WriteErrorResponse(w, err)
 		return
 	}
 
 	updatedGoal, err := h.service.GetGoalByID(uint(id))
 	if err != nil {
-		WriteErrorResponse(w, err)
+		response.WriteErrorResponse(w, err)
 		return
 	}
 
-	WriteResponse(w, http.StatusOK, updatedGoal)
+	response.WriteResponse(w, http.StatusOK, updatedGoal)
 }
 
 // @Summary Delete a goal
@@ -135,8 +136,8 @@ func (h *Handler) UpdateGoal(w http.ResponseWriter, r *http.Request) {
 // @Tags goals
 // @Param id path int true "Goal ID"
 // @Success 204 "No Content"
-// @Failure 400 {object} APIError
-// @Failure 404 {object} APIError
+// @Failure 400 {object} response.APIError
+// @Failure 404 {object} response.APIError
 // @Router /api/goals/{id} [delete]
 func (h *Handler) DeleteGoal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -144,14 +145,14 @@ func (h *Handler) DeleteGoal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
-		WriteErrorResponse(w, ErrInvalidID)
+		response.WriteErrorResponse(w, response.ErrInvalidID)
 		return
 	}
 
 	if err := h.service.DeleteGoal(uint(id)); err != nil {
-		WriteErrorResponse(w, err)
+		response.WriteErrorResponse(w, err)
 		return
 	}
 
-	WriteResponse(w, http.StatusNoContent, nil)
+	response.WriteResponse(w, http.StatusNoContent, nil)
 }

@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/hvmello/goal-tracker-backend/internal/config" // Adicionado
-	"github.com/hvmello/goal-tracker-backend/internal/goals"
+	"github.com/hvmello/goal-tracker-backend/internal/config"
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
 	"gorm.io/gorm"
 )
 
@@ -35,7 +35,7 @@ func (h *Handler) CheckHealth(w http.ResponseWriter, r *http.Request) {
 		statusCode = http.StatusServiceUnavailable
 	}
 
-	goals.WriteResponse(w, statusCode, health)
+	response.WriteResponse(w, statusCode, health)
 }
 
 func (h *Handler) checkDatabaseHealth(health *Status) {

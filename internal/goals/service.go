@@ -1,5 +1,9 @@
 package goals
 
+import (
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
+)
+
 // Service handles business logic for goals
 type Service struct {
 	repo Repository
@@ -23,7 +27,7 @@ func (s *Service) GetAllGoals() ([]Goal, error) {
 func (s *Service) GetGoalByID(id uint) (*Goal, error) {
 	goal, err := s.repo.FindByID(id)
 	if err != nil {
-		return nil, ErrGoalNotFound
+		return nil, response.ErrGoalNotFound
 	}
 	return goal, nil
 }
@@ -44,7 +48,7 @@ func (s *Service) UpdateGoal(id uint, goal *Goal) error {
 
 	existingGoal, err := s.repo.FindByID(id)
 	if err != nil {
-		return ErrGoalNotFound
+		return response.ErrGoalNotFound
 	}
 
 	// Update only allowed fields
@@ -59,7 +63,7 @@ func (s *Service) UpdateGoal(id uint, goal *Goal) error {
 // DeleteGoal removes a goal
 func (s *Service) DeleteGoal(id uint) error {
 	if _, err := s.repo.FindByID(id); err != nil {
-		return ErrGoalNotFound
+		return response.ErrGoalNotFound
 	}
 
 	if err := s.repo.Delete(id); err != nil {

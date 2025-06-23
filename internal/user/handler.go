@@ -3,6 +3,8 @@ package user
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
 )
 
 type RegisterRequest struct {
@@ -22,21 +24,20 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		response.WriteErrorResponse(w, err)
 		return
 	}
 
 	user, err := h.service.Register(req.Name, req.Email, req.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		response.WriteErrorResponse(w, err)
 		return
 	}
 
-	response := map[string]interface{}{
+	resp := map[string]interface{}{
 		"id":    user.ID,
 		"name":  user.Name,
 		"email": user.Email,
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	response.WriteResponse(w, http.StatusCreated, resp)
 }

@@ -1,6 +1,10 @@
 package goals
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
+)
 
 // GoalService define a interface para o serviço
 type GoalService interface {
@@ -34,7 +38,7 @@ func (m *MockService) GetGoalByID(id uint) (*Goal, error) {
 	if goal, exists := m.goals[id]; exists {
 		return &goal, nil
 	}
-	return nil, ErrGoalNotFound
+	return nil, response.ErrGoalNotFound
 }
 
 func (m *MockService) CreateGoal(goal *Goal) error {
@@ -47,7 +51,7 @@ func (m *MockService) CreateGoal(goal *Goal) error {
 
 func (m *MockService) UpdateGoal(id uint, goal *Goal) error {
 	if _, exists := m.goals[id]; !exists {
-		return ErrGoalNotFound
+		return response.ErrGoalNotFound
 	}
 	m.goals[id] = *goal
 	return nil
@@ -55,7 +59,7 @@ func (m *MockService) UpdateGoal(id uint, goal *Goal) error {
 
 func (m *MockService) DeleteGoal(id uint) error {
 	if _, exists := m.goals[id]; !exists {
-		return ErrGoalNotFound
+		return response.ErrGoalNotFound
 	}
 	delete(m.goals, id)
 	return nil

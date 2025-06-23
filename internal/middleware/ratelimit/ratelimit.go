@@ -10,7 +10,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/hvmello/goal-tracker-backend/internal/config"
-	"github.com/hvmello/goal-tracker-backend/internal/goals"
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
 )
 
 type visitor struct {
@@ -107,7 +107,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			w.Header().Set("X-RateLimit-Limit", "5")
 			w.Header().Set("X-RateLimit-Remaining", "0")
 
-			goals.WriteErrorResponse(w, goals.ErrTooManyRequests)
+			response.WriteErrorResponse(w, response.ErrTooManyRequests)
 			return
 		}
 
