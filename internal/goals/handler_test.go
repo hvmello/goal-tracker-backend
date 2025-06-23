@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
 )
 
 func TestHandleGetAllGoals(t *testing.T) {
@@ -83,7 +84,7 @@ func TestHandleGetAllGoals(t *testing.T) {
 			}
 
 			if w.Code == http.StatusOK {
-				var response APIResponse
+				var response response.APIResponse
 				if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 					t.Errorf("Falha ao decodificar response: %v", err)
 					return
