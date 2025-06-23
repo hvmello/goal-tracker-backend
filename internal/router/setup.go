@@ -2,6 +2,7 @@ package router
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -9,6 +10,7 @@ import (
 	"github.com/hvmello/goal-tracker-backend/internal/config"
 	"github.com/hvmello/goal-tracker-backend/internal/goals"
 	"github.com/hvmello/goal-tracker-backend/internal/health"
+	"github.com/hvmello/goal-tracker-backend/internal/middleware/cors"
 	"github.com/hvmello/goal-tracker-backend/internal/middleware/ratelimit"
 	"github.com/hvmello/goal-tracker-backend/internal/middleware/securityheaders"
 	"github.com/hvmello/goal-tracker-backend/internal/user"
@@ -16,6 +18,8 @@ import (
 
 func SetupRouter(cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
+
+	r.Use(cors.Middleware) // CORS middleware
 
 	// Security headers middleware
 	r.Use(securityheaders.Middleware)
@@ -62,7 +66,13 @@ func SetupRouter(cfg *config.Config) *mux.Router {
 	userHandler := user.NewHandler(userService)
 
 	r.HandleFunc("/api/users/register", userHandler.Register).Methods("POST")
-	// Adicione outras rotas de usuário conforme necessário
+
+	r.HandleFunc("/api/goals", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods("OPTIONS")
+	r.HandleFunc("/api/goals/{id:[0-9]+}", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods("OPTIONS")
 
 	return r
 }
