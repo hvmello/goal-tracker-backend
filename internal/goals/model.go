@@ -14,6 +14,7 @@ type Goal struct {
 	Description string         `json:"description"`
 	DueDate     time.Time      `json:"dueDate"`
 	Progress    int            `json:"progress" gorm:"default:0"`
+	UserID      uint           `json:"userId"` // Foreign key
 	CreatedAt   time.Time      `json:"createdAt" gorm:"autoCreateTime"`
 	UpdatedAt   time.Time      `json:"updatedAt" gorm:"autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index" swaggerignore:"true"`
