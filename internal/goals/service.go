@@ -4,6 +4,15 @@ import (
 	"github.com/hvmello/goal-tracker-backend/pkg/response"
 )
 
+type GoalService interface {
+	GetAllGoals() ([]Goal, error)
+	GetGoalByID(id uint) (*Goal, error)
+	CreateGoal(goal *Goal) error
+	UpdateGoal(id uint, goal *Goal) error
+	DeleteGoal(id uint) error
+	PartialUpdateGoal(id uint, goal *UpdateGoalRequest) (*Goal, error)
+}
+
 // Service handles business logic for goals
 type Service struct {
 	repo Repository
@@ -70,4 +79,29 @@ func (s *Service) DeleteGoal(id uint) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) PartialUpdateGoal(id uint, req *UpdateGoalRequest) (*Goal, error) {
+	goal, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, response.ErrGoalNotFound
+	}
+
+	if req.Title != nil {
+		goal.Title = *req.Title
+	}
+	if req.Description != nil {
+		goal.Description = *req.Description
+	}
+	if req.DueDate != nil {
+		goal.DueDate = *req.DueDate
+	}
+	if req.Progress != nil {
+		goal.Progress = *req.Progress
+	}
+
+	if err := s.repo.Update(goal); err != nil {
+		return nil, err
+	}
+	return goal, nil
 }

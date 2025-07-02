@@ -6,15 +6,6 @@ import (
 	"github.com/hvmello/goal-tracker-backend/pkg/response"
 )
 
-// GoalService define a interface para o serviço
-type GoalService interface {
-	GetAllGoals() ([]Goal, error)
-	GetGoalByID(id uint) (*Goal, error)
-	CreateGoal(goal *Goal) error
-	UpdateGoal(id uint, goal *Goal) error
-	DeleteGoal(id uint) error
-}
-
 // MockService implementa GoalService para testes
 type MockService struct {
 	goals map[uint]Goal
@@ -63,4 +54,29 @@ func (m *MockService) DeleteGoal(id uint) error {
 	}
 	delete(m.goals, id)
 	return nil
+}
+
+func (m *MockService) PartialUpdateGoal(id uint, req *UpdateGoalRequest) (*Goal, error) {
+	goal, exists := m.goals[id]
+	if !exists {
+		return nil, response.ErrGoalNotFound
+	}
+
+	// Update only the fields that are provided in the request
+	if req.Title != nil {
+		goal.Title = *req.Title
+	}
+	if req.Description != nil {
+		goal.Description = *req.Description
+	}
+	if req.Progress != nil {
+		goal.Progress = *req.Progress
+	}
+	if req.DueDate != nil {
+		goal.DueDate = *req.DueDate
+	}
+
+	m.goals[id] = goal
+
+	return nil, nil
 }

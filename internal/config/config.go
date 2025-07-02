@@ -1,11 +1,12 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -15,23 +16,23 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port    string
-	BaseURL string
+	Port    string // Port is the port on which the server will listen
+	BaseURL string // BaseURL is optional and can be used to set a base path for the server
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     string
+	Host     string // Host is the database host, e.g., "localhost" or an IP address
+	Port     string // Port is the database port, e.g., "5432" for PostgreSQL
 	User     string
 	Password string
 	DBName   string
-	SSLMode  string
+	SSLMode  string // SSLMode is the SSL mode for the database connection, e.g., "disable", "require", etc.
 }
 
 type RateLimitConfig struct {
-	Enabled           bool `env:"RATE_LIMIT_ENABLED" envDefault:"true"`
-	RequestsPerMinute int  `env:"RATE_LIMIT_REQUESTS_PER_MINUTE" envDefault:"60"`
-	BurstSize         int  `env:"RATE_LIMIT_BURST_SIZE" envDefault:"20"`
+	Enabled           bool // Enabled indicates whether rate limiting is enabled
+	RequestsPerMinute int
+	BurstSize         int
 }
 
 func GetConfig() *Config {
@@ -51,6 +52,7 @@ func GetConfig() *Config {
 	var loadedEnv bool
 	for _, path := range envPaths {
 		if err := godotenv.Load(path); err == nil {
+			log.Printf(".env file loaded from: %s", path)
 			loadedEnv = true
 			break
 		}
@@ -60,7 +62,7 @@ func GetConfig() *Config {
 		log.Printf("Warning: .env file not found in any of the search paths")
 	}
 
-	return &Config{
+	cfg := &Config{
 		Server: ServerConfig{
 			Port:    getEnv("SERVER_PORT", "8080"),
 			BaseURL: getEnv("SERVER_BASE_URL", ""),
@@ -75,10 +77,26 @@ func GetConfig() *Config {
 		},
 		RateLimit: RateLimitConfig{
 			Enabled:           getEnvBool("RATE_LIMIT_ENABLED", true),
-			RequestsPerMinute: getEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 5),
+			RequestsPerMinute: getEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 60),
 			BurstSize:         getEnvInt("RATE_LIMIT_BURST_SIZE", 20),
 		},
 	}
+
+	if cfg.Database.Host == "" || cfg.Database.User == "" || cfg.Database.Password == "" || cfg.Database.DBName == "" {
+		log.Fatal("Database infos are incomplete. Check the env variables.")
+	}
+
+	if cfg.Database.Host == "" || cfg.Database.User == "" || cfg.Database.Password == "" || cfg.Database.DBName == "" {
+		log.Fatal("Database infos are incomplete. Check the env variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME.")
+	}
+	if cfg.RateLimit.RequestsPerMinute <= 0 {
+		log.Fatal("Rate limit RequestsPerMinute must be greater than zero.")
+	}
+	if cfg.RateLimit.BurstSize <= 0 {
+		log.Fatal("Rate limit BurstSize must be greater than zero.")
+	}
+
+	return cfg
 }
 
 // getEnv retrieves an environment variable or returns the default value

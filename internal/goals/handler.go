@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hvmello/goal-tracker-backend/pkg/response"
@@ -11,6 +12,13 @@ import (
 
 type Handler struct {
 	service GoalService
+}
+
+type UpdateGoalRequest struct {
+	Title       *string    `json:"title,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	DueDate     *time.Time `json:"dueDate,omitempty"`
+	Progress    *int       `json:"progress,omitempty"`
 }
 
 func NewHandler(service GoalService) *Handler {
@@ -111,18 +119,13 @@ func (h *Handler) UpdateGoal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var goal Goal
-	if err := json.NewDecoder(r.Body).Decode(&goal); err != nil {
+	var req UpdateGoalRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.WriteErrorResponse(w, response.ErrInvalidRequest)
 		return
 	}
 
-	if err := h.service.UpdateGoal(uint(id), &goal); err != nil {
-		response.WriteErrorResponse(w, err)
-		return
-	}
-
-	updatedGoal, err := h.service.GetGoalByID(uint(id))
+	updatedGoal, err := h.service.PartialUpdateGoal(uint(id), &req)
 	if err != nil {
 		response.WriteErrorResponse(w, err)
 		return

@@ -1,6 +1,8 @@
 package goals
 
 import (
+	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -35,6 +37,9 @@ func (r *GormRepository) FindByID(id uint) (*Goal, error) {
 	var goal Goal
 	err := r.db.First(&goal, id).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &goal, nil
