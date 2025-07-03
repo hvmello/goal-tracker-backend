@@ -54,17 +54,19 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.Login(req.Email, req.Password)
+	user, token, err := h.service.Login(req.Email, req.Password)
 	if err != nil {
 		response.WriteErrorResponse(w, err)
 		return
 	}
 
 	resp := map[string]interface{}{
-		"id":    user.ID,
-		"name":  user.Name,
-		"email": user.Email,
-		// Add token or other fields if your service returns them
+		"token": token,
+		"user": map[string]interface{}{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+		},
 	}
 	response.WriteResponse(w, http.StatusOK, resp)
 }

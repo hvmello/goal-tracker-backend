@@ -68,28 +68,25 @@ func SetupRouter(cfg *config.Config) *mux.Router {
 	r.HandleFunc("/api/users/register", userHandler.Register).Methods("POST")
 	r.HandleFunc("/api/users/login", userHandler.Login).Methods("POST")
 
-	r.HandleFunc("/api/goals", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}).Methods("OPTIONS")
-	r.HandleFunc("/api/goals/{id:[0-9]+}", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}).Methods("OPTIONS")
-	r.HandleFunc("/api/users/register", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}).Methods("OPTIONS")
-	r.HandleFunc("/api/users/login", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}).Methods("OPTIONS")
+	// r.HandleFunc("/api/goals", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.WriteHeader(http.StatusNoContent)
+	// }).Methods("OPTIONS")
+	// r.HandleFunc("/api/goals/{id:[0-9]+}", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.WriteHeader(http.StatusNoContent)
+	// }).Methods("OPTIONS")
+	// r.HandleFunc("/api/users/register", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.WriteHeader(http.StatusNoContent)
+	// }).Methods("OPTIONS")
+	// handleWithOptions(r, "/api/users/login", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.WriteHeader(http.StatusNoContent)
+	// })
 
 	return r
 }
 
-func optionsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+func handleWithOptions(r *mux.Router, path string, handler func(http.ResponseWriter, *http.Request), methods ...string) {
+	r.HandleFunc(path, handler).Methods(methods...)
+	r.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods("OPTIONS")
 }
