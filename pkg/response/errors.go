@@ -31,4 +31,8 @@ var (
 		Message:    "Too many requests, please try again later",
 		StatusCode: http.StatusTooManyRequests,
 	}
+	ErrInvalidCredentials = &APIError{
+		Message:    "Unauthorized access! Invalid credentials",
+		StatusCode: http.StatusUnauthorized,
+	}
 )

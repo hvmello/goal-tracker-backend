@@ -2,12 +2,27 @@ package user
 
 import (
 	"errors"
+	"os"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/hvmello/goal-tracker-backend/pkg/response"
 	"golang.org/x/crypto/bcrypt"
 )
 
+var jwtSecret = []byte("123456")
+
+// getEnv is a helper to get env vars with default
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 type Service interface {
 	Register(name, email, password string) (*User, error)
+	Login(email, password string) (*User, string, error)
 }
 
 type service struct {
@@ -41,3 +56,39 @@ func (s *service) Register(name, email, password string) (*User, error) {
 
 	return user, nil
 }
+
+func (s *service) Login(email, password string) (*User, string, error) {
+	user, err := s.repo.FindByEmail(email)
+	if err != nil || user == nil {
+		return nil, "", response.ErrInvalidCredentials
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return nil, "", response.ErrInvalidCredentials
+	}
+
+	token, err := generateJWT(user)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return user, token, nil
+}
+
+func generateJWT(user *User) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": user.ID,
+		"email":   user.Email,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
+//func getEnvOrFail(key string) string {
+//	v := os.Getenv(key)
+//	if v == "" {
+//		panic("JWT_SECRET environment variable is required")
+//	}
+//	return v
+//} TODO
