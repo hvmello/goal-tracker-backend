@@ -10,8 +10,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var jwtSecret = []byte("123456")
-
 // getEnv is a helper to get env vars with default
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -26,11 +24,23 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo      Repository
+	jwtSecret []byte
 }
 
+// NewService creates a new user service
 func NewService(r Repository) Service {
-	return &service{r}
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		// Log a warning instead of panicking
+		// You might want to add proper logging here
+		println("WARNING: JWT_SECRET environment variable is not set")
+	}
+
+	return &service{
+		repo:      r,
+		jwtSecret: []byte(jwtSecret),
+	}
 }
 
 func (s *service) Register(name, email, password string) (*User, error) {
@@ -58,6 +68,10 @@ func (s *service) Register(name, email, password string) (*User, error) {
 }
 
 func (s *service) Login(email, password string) (*User, string, error) {
+	if len(s.jwtSecret) == 0 {
+		return nil, "", errors.New("JWT_SECRET environment variable is required")
+	}
+
 	user, err := s.repo.FindByEmail(email)
 	if err != nil || user == nil {
 		return nil, "", response.ErrInvalidCredentials
@@ -67,7 +81,7 @@ func (s *service) Login(email, password string) (*User, string, error) {
 		return nil, "", response.ErrInvalidCredentials
 	}
 
-	token, err := generateJWT(user)
+	token, err := s.generateJWT(user)
 	if err != nil {
 		return nil, "", err
 	}
@@ -75,20 +89,16 @@ func (s *service) Login(email, password string) (*User, string, error) {
 	return user, token, nil
 }
 
-func generateJWT(user *User) (string, error) {
+func (s *service) generateJWT(user *User) (string, error) {
+	if len(s.jwtSecret) == 0 {
+		return "", errors.New("JWT_SECRET environment variable is required")
+	}
+
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(s.jwtSecret)
 }
-
-//func getEnvOrFail(key string) string {
-//	v := os.Getenv(key)
-//	if v == "" {
-//		panic("JWT_SECRET environment variable is required")
-//	}
-//	return v
-//} TODO
